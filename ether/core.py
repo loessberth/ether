@@ -64,6 +64,8 @@ class Capacity:
         return 'Capacity(CPU: {0} Memory: {1})'.format(self.cpu_millis, self.memory)
 
 
+# TODO TODO TODO koordinatenberechnung passiert mit vivaldi.py? schauen wie das mit python funktioniert...
+# TODO TODO TODO evtl wird in dieser klasse der vivaldi method override verwendet?
 class Coordinate(abc.ABC):
     def distance_to(self, other: 'Coordinate') -> float:
         pass
@@ -158,6 +160,7 @@ class Flow:
 
         timer = env.now
         connection_time = ((route.rtt * 1.5) / 1000)  # rough estimate of TCP connection establish time
+        # TODO TODO why > 0?
         if connection_time > 0:
             yield env.timeout(connection_time)
 
@@ -170,6 +173,9 @@ class Flow:
         bytes_remaining = self.size
         transmission_time = bytes_remaining / goodput  # remaining seconds
 
+# TODO TODO TODO hier sind als diskret wertbare abläufe.
+# TODO TODO TODO ist es wichtig hier zu wissen in welcher relation ein schleifendurchlauf zum tatsächlichen UND simulierten time flow steht? :sweat:
+# TODO TODO TODO das hier genauer ansehen!!
         try:
             while True:
                 started = env.now
@@ -230,6 +236,8 @@ class Link:
         self.num_flows = 0
         self.max_allocatable = bandwidth
 
+
+    # TODO TODO TODO brauchen wir diese methode dann ueberhaupt noch? evlt stark abgeaendert...
     def recalculate_max_allocatable(self):
         num_flows = self.num_flows
         bandwidth = self.bandwidth
@@ -238,12 +246,25 @@ class Link:
             self.max_allocatable = bandwidth
             return
 
+        # TODO TODO TODO doch das kann man so machen, damit dann nicht eskaliert wird, bzw bei single flow eine obergrenze definiert wird
         # fair_per_flow is the maximum bandwidth a flow can get if there are no other flows that require less
         fair_per_flow = bandwidth / num_flows
 
+
+
+
+        # TODO TODO TODO eventuell muss der part entfernt werden, wir brauchen hier dann eben links die flows in ihrer goodputmenge fluktuieren lassen
+        # TODO TODO TODO soll heissen wie bei tcp in gewissen schritten mehr goodput bekommen und sobald zuviele packete verloren
+        # TODO TODO TODO gehen wird der goodput halbiert... simulation dafür überlegen...
+        # TODO das könnte hier allerdings zu fein granular sein, tcp hat usually immer ein paar verluste == resends...
+        # TODO d.h. wenn wir per flow immer ein paar resends berechnen sollte das schon mal nicht schlecht sein, dann zusätzlich noch schauen wie
+        # TODO ein fluktuieren aller flows gleichzeitig berechnet werden kann... integral? oder manuell mit dict und zuständen in loop?
+        # TODO ist die zeit hier disket darstellbar, gibt es sekunden?
         # flows that require less than the fair value may keep it
         reserved = {k: v for k, v in self.allocation.items() if v < fair_per_flow}
         allocatable = bandwidth - sum(reserved.values())
+
+
 
         # these are the flows competing for the remaining bandwidth
         competing_flows = num_flows - len(reserved)
@@ -253,6 +274,7 @@ class Link:
             allocatable_per_flow = allocatable
 
         self.max_allocatable = max(fair_per_flow, allocatable_per_flow)
+        # TODO TODO TODO ============ ENDE
 
     def get_goodput_bps(self, flow: Flow):
         """
